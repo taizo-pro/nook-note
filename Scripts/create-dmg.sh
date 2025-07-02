@@ -1,168 +1,169 @@
 #!/bin/bash
 
-# NookNote DMG Creation Script
-# Creates a distributable DMG file for the signed app
+# NookNote - DMG Creation Script
+# This script builds the app, signs it, and creates a distributable DMG file
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-PROJECT_DIR="$SCRIPT_DIR/.."
-RELEASE_DIR="$PROJECT_DIR/build/Release"
+# Configuration
 APP_NAME="NookNote"
-APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
-VERSION="1.0.0"
-DMG_NAME="$APP_NAME-$VERSION"
-TEMP_DMG="$RELEASE_DIR/temp_$DMG_NAME.dmg"
-FINAL_DMG="$RELEASE_DIR/$DMG_NAME.dmg"
+BUILD_DIR=".build/release"
+DMG_DIR="build/dmg"
+TEMP_DMG_DIR="$DMG_DIR/temp"
+FINAL_DMG_NAME="$APP_NAME.dmg"
+CERT_NAME="NookNote Developer"
+KEYCHAIN_NAME="nooknote-signing"
 
-echo "📀 Creating DMG for NookNote v$VERSION"
-echo "======================================"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Check if app bundle exists
-if [ ! -d "$APP_BUNDLE" ]; then
-    echo "❌ Error: App bundle not found at $APP_BUNDLE"
-    echo "   Run './Scripts/build-app.sh' and './Scripts/sign-app.sh' first"
+echo -e "${BLUE}🚀 Building and packaging NookNote for distribution...${NC}"
+
+# Check for required tools
+check_tool() {
+    if ! command -v "$1" &> /dev/null; then
+        echo -e "${RED}❌ Error: $1 is required but not installed${NC}"
+        exit 1
+    fi
+}
+
+echo "🔍 Checking required tools..."
+check_tool "swift"
+check_tool "codesign"
+check_tool "hdiutil"
+
+# Check if certificate exists
+if ! security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  Warning: Code signing certificate not found${NC}"
+    echo "Creating self-signed certificate..."
+    ./Scripts/create-certificate.sh
+fi
+
+# Clean previous builds
+echo "🧹 Cleaning previous builds..."
+rm -rf "$BUILD_DIR"
+rm -rf "$DMG_DIR"
+swift package clean
+
+# Build the application
+echo "🔨 Building NookNote in release mode..."
+swift build --configuration release
+
+# Check if build succeeded
+if [ ! -f "$BUILD_DIR/$APP_NAME" ]; then
+    echo -e "${RED}❌ Build failed: $BUILD_DIR/$APP_NAME not found${NC}"
     exit 1
 fi
 
-# Clean up previous DMG files
-echo "🧹 Cleaning up previous DMG files..."
-rm -f "$TEMP_DMG" "$FINAL_DMG"
+# Create app bundle structure
+echo "📦 Creating app bundle..."
+APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
+mkdir -p "$APP_BUNDLE/Contents/MacOS"
+mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-# Check for create-dmg tool
-if command -v create-dmg &> /dev/null; then
-    echo "📦 Using create-dmg tool"
-    
-    # Create DMG using create-dmg
-    create-dmg \
-        --volname "$APP_NAME $VERSION" \
-        --volicon "$APP_BUNDLE/Contents/Resources/AppIcon.icns" \
-        --window-pos 200 120 \
-        --window-size 600 400 \
-        --icon-size 100 \
-        --icon "$APP_NAME.app" 175 190 \
-        --hide-extension "$APP_NAME.app" \
-        --app-drop-link 425 190 \
-        --skip-jenkins \
-        "$FINAL_DMG" \
-        "$APP_BUNDLE"
-        
-elif command -v hdiutil &> /dev/null; then
-    echo "📦 Using hdiutil (macOS built-in)"
-    
-    # Calculate size needed (app size + 50MB buffer)
-    APP_SIZE=$(du -sm "$APP_BUNDLE" | cut -f1)
-    DMG_SIZE=$((APP_SIZE + 50))
-    
-    # Create temporary DMG
-    echo "   Creating temporary DMG (${DMG_SIZE}MB)..."
-    hdiutil create -srcfolder "$APP_BUNDLE" -volname "$APP_NAME $VERSION" -fs HFS+ \
-        -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DMG_SIZE}m "$TEMP_DMG"
-    
-    # Mount the temporary DMG
-    echo "   Mounting temporary DMG..."
-    MOUNT_DIR=$(hdiutil attach -readwrite -noverify -noautoopen "$TEMP_DMG" | \
-        egrep '^/dev/' | sed 1q | awk '{print $3}')
-    
-    # Configure the DMG appearance
-    echo "   Configuring DMG appearance..."
-    
-    # Create Applications symlink
-    ln -sf /Applications "$MOUNT_DIR/Applications"
-    
-    # Set background and icon positions (if possible)
-    if command -v osascript &> /dev/null; then
-        osascript << EOF
-tell application "Finder"
-    tell disk "$APP_NAME $VERSION"
-        open
-        set current view of container window to icon view
-        set toolbar visible of container window to false
-        set statusbar visible of container window to false
-        set the bounds of container window to {400, 100, 1000, 500}
-        set viewOptions to the icon view options of container window
-        set arrangement of viewOptions to not arranged
-        set icon size of viewOptions to 100
-        set position of item "$APP_NAME.app" of container window to {175, 190}
-        set position of item "Applications" of container window to {425, 190}
-        close
-        open
-        update without registering applications
-        delay 2
-    end tell
-end tell
+# Copy executable
+cp "$BUILD_DIR/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
+
+# Copy Info.plist
+cp "Resources/Info.plist" "$APP_BUNDLE/Contents/"
+
+# Copy app icon
+cp -r "Resources/AppIcon.appiconset" "$APP_BUNDLE/Contents/Resources/"
+
+# Create PkgInfo file
+echo "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
+
+# Sign the application
+echo "🔏 Code signing the application..."
+codesign --sign "$CERT_NAME" \
+         --keychain "$KEYCHAIN_NAME" \
+         --options runtime \
+         --force \
+         --deep \
+         "$APP_BUNDLE" || {
+    echo -e "${YELLOW}⚠️  Code signing failed, continuing without signature...${NC}"
+}
+
+# Verify signature
+echo "🔍 Verifying code signature..."
+codesign --verify --verbose "$APP_BUNDLE" || {
+    echo -e "${YELLOW}⚠️  Signature verification failed${NC}"
+}
+
+# Create DMG staging directory
+echo "📂 Preparing DMG contents..."
+mkdir -p "$TEMP_DMG_DIR"
+cp -r "$APP_BUNDLE" "$TEMP_DMG_DIR/"
+
+# Create Applications symlink
+ln -sf /Applications "$TEMP_DMG_DIR/Applications"
+
+# Create README for DMG
+cat > "$TEMP_DMG_DIR/README.txt" << EOF
+NookNote - GitHub Discussions MenuBar App
+
+Installation Instructions:
+1. Drag NookNote.app to the Applications folder
+2. Right-click NookNote.app and select "Open" (first time only)
+3. Click "Open" when macOS asks for confirmation
+4. Configure your GitHub repository and access token
+
+For help and support, visit:
+https://github.com/taizo-pro/nook-note
+
+Thank you for using NookNote!
 EOF
-    fi
-    
-    # Set custom icon if available
-    if [ -f "$APP_BUNDLE/Contents/Resources/AppIcon.icns" ]; then
-        cp "$APP_BUNDLE/Contents/Resources/AppIcon.icns" "$MOUNT_DIR/.VolumeIcon.icns"
-        SetFile -c icnC "$MOUNT_DIR/.VolumeIcon.icns"
-        SetFile -a C "$MOUNT_DIR"
-    fi
-    
-    # Unmount the temporary DMG
-    echo "   Unmounting temporary DMG..."
-    hdiutil detach "$MOUNT_DIR"
-    
-    # Convert to compressed, read-only DMG
-    echo "   Creating final compressed DMG..."
-    hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG"
-    
-    # Clean up temporary DMG
-    rm -f "$TEMP_DMG"
-    
-else
-    echo "❌ Error: No DMG creation tools available"
-    echo "   Please install create-dmg: brew install create-dmg"
-    echo "   Or ensure hdiutil is available (should be on macOS)"
-    exit 1
-fi
 
-# Verify the DMG
-echo "🔍 Verifying DMG..."
-if [ -f "$FINAL_DMG" ]; then
-    DMG_SIZE=$(du -h "$FINAL_DMG" | cut -f1)
-    echo "✅ DMG created successfully!"
-    echo "   File: $FINAL_DMG"
-    echo "   Size: $DMG_SIZE"
-    
-    # Test mounting the DMG
-    echo "   Testing DMG mount..."
-    if hdiutil attach -readonly -noverify "$FINAL_DMG" &>/dev/null; then
-        MOUNT_POINT=$(hdiutil info | grep "$APP_NAME $VERSION" | awk '{print $3}')
-        if [ -n "$MOUNT_POINT" ] && [ -d "$MOUNT_POINT/$APP_NAME.app" ]; then
-            echo "✅ DMG mounts correctly and contains app"
-            hdiutil detach "$MOUNT_POINT" &>/dev/null
-        else
-            echo "⚠️  DMG mount test inconclusive"
-        fi
-    else
-        echo "⚠️  Could not test DMG mount"
-    fi
-    
-else
-    echo "❌ Error: DMG creation failed"
-    exit 1
-fi
+# Create the DMG using hdiutil
+echo "💿 Creating DMG file..."
+mkdir -p "$DMG_DIR"
+
+# Calculate size needed
+SIZE=$(du -sm "$TEMP_DMG_DIR" | cut -f1)
+SIZE=$((SIZE + 50)) # Add 50MB buffer
+
+# Create temporary DMG
+TEMP_DMG="$DMG_DIR/temp.dmg"
+hdiutil create -size ${SIZE}m -fs HFS+ -volname "$APP_NAME" "$TEMP_DMG"
+
+# Mount temporary DMG
+MOUNT_DIR=$(hdiutil attach "$TEMP_DMG" | grep -E '^/dev/' | sed 's/^[^[:space:]]*[[:space:]]*[^[:space:]]*[[:space:]]*//')
+
+# Copy contents
+cp -r "$TEMP_DMG_DIR"/* "$MOUNT_DIR/"
+
+# Unmount
+hdiutil detach "$MOUNT_DIR"
+
+# Convert to final DMG
+hdiutil convert "$TEMP_DMG" -format UDZO -o "$DMG_DIR/$FINAL_DMG_NAME"
+rm "$TEMP_DMG"
+
+# Clean up temporary directory
+rm -rf "$TEMP_DMG_DIR"
+
+# Get file size
+DMG_SIZE=$(du -h "$DMG_DIR/$FINAL_DMG_NAME" | cut -f1)
 
 echo ""
-echo "🎉 DMG Creation Complete!"
+echo -e "${GREEN}✅ DMG creation completed successfully!${NC}"
 echo ""
-echo "📋 Distribution Information:"
-echo "   DMG File: $FINAL_DMG"
-echo "   App Name: $APP_NAME"
-echo "   Version: $VERSION"
-echo "   Size: $DMG_SIZE"
+echo "📊 Build Summary:"
+echo "  App Bundle: $APP_BUNDLE"
+echo "  DMG File: $DMG_DIR/$FINAL_DMG_NAME"
+echo "  DMG Size: $DMG_SIZE"
 echo ""
-echo "📤 Ready for distribution:"
-echo "1. Upload to GitHub Releases"
-echo "2. Share download link with users"
-echo "3. Provide installation instructions"
+echo "🚀 Distribution Instructions:"
+echo "  1. Upload $DMG_DIR/$FINAL_DMG_NAME to GitHub Releases"
+echo "  2. Include installation instructions in release notes"
+echo "  3. Tag the release with semantic version (e.g., v1.0.0)"
 echo ""
-echo "⚠️  Installation Notes for Users:"
-echo "• macOS will show security warnings for unsigned apps"
-echo "• Users should right-click DMG and select 'Open'"
-echo "• After mounting, drag app to Applications folder"
-echo "• Right-click app and select 'Open' on first launch"
-echo "• Users may need to allow app in System Preferences > Security"
+echo -e "${YELLOW}⚠️  Important Security Note:${NC}"
+echo "  This app uses a self-signed certificate. Users will see a security warning"
+echo "  on first launch. Include clear instructions to right-click and select 'Open'."
+echo ""
+echo "🎉 Ready for distribution!"

@@ -52,3 +52,7 @@ secrets.json
 # Build artifacts
 build/
 dist/
+
+# AI assistant context files
+gemini.md
+CLAUDE.md

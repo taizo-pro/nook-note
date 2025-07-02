@@ -1,0 +1,248 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  SWIFT_VERSION: 5.9
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v3
+      with:
+        path: .build
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+          
+    - name: Build project
+      run: swift build --configuration release
+      
+    - name: Run unit tests
+      run: swift test --configuration release
+      
+    - name: Run integration tests (with mock data)
+      run: swift test --configuration release --filter "IntegrationTests"
+      env:
+        # Don't run real API tests in CI - use mock data only
+        SKIP_REAL_API_TESTS: true
+        
+    - name: Generate test coverage
+      run: |
+        swift test --enable-code-coverage
+        xcrun llvm-cov export -format="lcov" \
+          .build/debug/NookNotePackageTests.xctest/Contents/MacOS/NookNotePackageTests \
+          -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
+          
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.lcov
+        fail_ci_if_error: false
+        
+    - name: Check for security vulnerabilities
+      run: |
+        # Check for common Swift security issues
+        if grep -r "UserDefaults.*password\|UserDefaults.*token\|print.*token\|print.*password" Sources/ || true; then
+          echo "⚠️ Warning: Potential security issue found - tokens or passwords in UserDefaults or print statements"
+        fi
+        
+    - name: Validate app bundle structure
+      run: |
+        swift build --configuration release
+        if [ -f ".build/release/NookNote" ]; then
+          echo "✅ Build artifact created successfully"
+          file .build/release/NookNote
+          otool -L .build/release/NookNote | head -10
+        else
+          echo "❌ Build artifact not found"
+          exit 1
+        fi
+
+  lint:
+    name: Code Quality
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Install SwiftLint
+      run: |
+        brew install swiftlint
+        
+    - name: Run SwiftLint
+      run: |
+        swiftlint --version
+        swiftlint lint --reporter github-actions-logging
+        
+    - name: Check code formatting
+      run: |
+        # Check if swift-format is available
+        if command -v swift-format &> /dev/null; then
+          echo "Running swift-format check..."
+          swift-format lint --recursive Sources/
+        else
+          echo "swift-format not available, skipping format check"
+        fi
+        
+    - name: Analyze dependencies
+      run: |
+        echo "📦 Analyzing Swift Package Dependencies..."
+        swift package show-dependencies
+        
+    - name: Check for TODO/FIXME comments
+      run: |
+        echo "🔍 Checking for TODO/FIXME comments..."
+        TODO_COUNT=$(grep -r "TODO\|FIXME\|XXX\|HACK" Sources/ || true | wc -l)
+        echo "Found $TODO_COUNT TODO/FIXME comments"
+        if [ $TODO_COUNT -gt 10 ]; then
+          echo "⚠️ Warning: High number of TODO/FIXME comments ($TODO_COUNT)"
+        fi
+
+  security:
+    name: Security Scan
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run security checks
+      run: |
+        echo "🔒 Running security analysis..."
+        
+        # Check for hardcoded secrets
+        echo "Checking for hardcoded secrets..."
+        if grep -r "ghp_\|github_pat_\|glpat-\|sk-" Sources/ Tests/ || true; then
+          echo "❌ Potential hardcoded tokens found"
+          exit 1
+        fi
+        
+        # Check for insecure network calls
+        echo "Checking for insecure network calls..."
+        if grep -r "http://" Sources/ || true; then
+          echo "⚠️ Warning: HTTP URLs found - should use HTTPS"
+        fi
+        
+        # Check for unsafe Swift patterns
+        echo "Checking for unsafe Swift patterns..."
+        if grep -r "unsafeBitCast\|unsafeDowncast\|Unmanaged" Sources/ || true; then
+          echo "⚠️ Warning: Unsafe Swift patterns found"
+        fi
+        
+        echo "✅ Security scan completed"
+        
+    - name: Check dependencies for vulnerabilities
+      run: |
+        echo "📦 Checking dependencies for known vulnerabilities..."
+        swift package show-dependencies --format json > dependencies.json
+        
+        # For now, just list dependencies
+        # In the future, this could integrate with a vulnerability database
+        echo "Current dependencies:"
+        cat dependencies.json | grep -o '"identity" : "[^"]*"' | sort | uniq || true
+
+  accessibility:
+    name: Accessibility Check
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Run accessibility tests
+      run: |
+        echo "♿ Running accessibility tests..."
+        swift test --filter "AccessibilityTests"
+        
+    - name: Check for accessibility patterns
+      run: |
+        echo "🔍 Checking code for accessibility patterns..."
+        
+        # Check for accessibility labels
+        ACCESSIBILITY_COUNT=$(grep -r "accessibilityLabel\|accessibilityHint\|accessibilityValue" Sources/ || true | wc -l)
+        echo "Found $ACCESSIBILITY_COUNT accessibility annotations"
+        
+        # Check for keyboard navigation support
+        KEYBOARD_COUNT=$(grep -r "keyboardShortcut\|focusable\|onFocusChange" Sources/ || true | wc -l)
+        echo "Found $KEYBOARD_COUNT keyboard navigation patterns"
+        
+        if [ $ACCESSIBILITY_COUNT -lt 5 ]; then
+          echo "⚠️ Warning: Low number of accessibility annotations"
+        fi
+        
+        echo "✅ Accessibility check completed"
+
+  performance:
+    name: Performance Check
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Build optimized release
+      run: |
+        echo "🚀 Building optimized release..."
+        swift build --configuration release -Xswiftc -Osize
+        
+    - name: Check binary size
+      run: |
+        echo "📏 Checking binary size..."
+        BINARY_SIZE=$(stat -f%z .build/release/NookNote)
+        BINARY_SIZE_MB=$((BINARY_SIZE / 1024 / 1024))
+        
+        echo "Binary size: ${BINARY_SIZE_MB}MB"
+        
+        if [ $BINARY_SIZE_MB -gt 50 ]; then
+          echo "⚠️ Warning: Binary size is large (${BINARY_SIZE_MB}MB)"
+        else
+          echo "✅ Binary size is acceptable (${BINARY_SIZE_MB}MB)"
+        fi
+        
+    - name: Run performance tests
+      run: |
+        echo "⚡ Running performance tests..."
+        swift test --filter "PerformanceTests"
+        
+    - name: Memory usage analysis
+      run: |
+        echo "🧠 Analyzing memory usage patterns..."
+        # Static analysis for potential memory issues
+        if grep -r "strong.*self\]\|retain.*cycle" Sources/ || true; then
+          echo "⚠️ Potential retain cycle patterns found"
+        fi
+        
+        echo "✅ Performance check completed"

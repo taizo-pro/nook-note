@@ -1,0 +1,204 @@
+# SwiftLint Configuration for NookNote
+# This configuration ensures consistent code style and quality
+
+# Directories to include in linting
+included:
+  - Sources
+  - Tests
+
+# Directories to exclude from linting
+excluded:
+  - .build
+  - .swiftpm
+  - build
+  - Scripts
+
+# Rules to disable
+disabled_rules:
+  - trailing_whitespace # Can be auto-fixed
+  - todo # We allow TODO comments during development
+
+# Rules to enable (opt-in rules)
+opt_in_rules:
+  - array_init
+  - attributes
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - convenience_type
+  - discouraged_object_literal
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - enum_case_associated_values_count
+  - explicit_init
+  - extension_access_modifier
+  - fallthrough
+  - fatal_error_message
+  - file_name
+  - first_where
+  - force_unwrapping
+  - function_default_parameter_at_end
+  - identical_operands
+  - implicit_return
+  - joined_default_parameter
+  - last_where
+  - legacy_random
+  - literal_expression_end_indentation
+  - lower_acl_than_parent
+  - modifier_order
+  - multiline_arguments
+  - multiline_function_chains
+  - multiline_literal_brackets
+  - multiline_parameters
+  - nimble_operator
+  - nslocalizedstring_key
+  - operator_usage_whitespace
+  - overridden_super_call
+  - override_in_extension
+  - pattern_matching_keywords
+  - prefer_self_type_over_type_of_self
+  - private_action
+  - private_outlet
+  - prohibited_super_call
+  - quick_discouraged_call
+  - quick_discouraged_focused_test
+  - quick_discouraged_pending_test
+  - reduce_into
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - single_test_class
+  - sorted_first_last
+  - static_operator
+  - strong_iboutlet
+  - toggle_bool
+  - unneeded_parentheses_in_closure_argument
+  - unused_import
+  - unused_private_declaration
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - vertical_whitespace_opening_braces
+  - xct_specific_matcher
+  - yoda_condition
+
+# Analyzer rules (require full compilation)
+analyzer_rules:
+  - explicit_self
+  - unused_declaration
+  - unused_import
+
+# Custom rule configurations
+line_length:
+  warning: 120
+  error: 150
+  ignores_comments: true
+  ignores_urls: true
+  ignores_function_declarations: true
+  ignores_interpolated_strings: true
+
+function_body_length:
+  warning: 50
+  error: 100
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 1000
+  ignore_comment_only_lines: true
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+
+nesting:
+  type_level:
+    warning: 3
+    error: 5
+  statement_level:
+    warning: 5
+    error: 10
+
+identifier_name:
+  min_length:
+    warning: 1
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+  excluded:
+    - id
+    - x
+    - y
+    - z
+    - dx
+    - dy
+    - dz
+
+type_name:
+  min_length:
+    warning: 3
+    error: 2
+  max_length:
+    warning: 50
+    error: 60
+
+# Custom rules
+custom_rules:
+  # Require documentation for public APIs
+  public_api_documentation:
+    name: "Public API Documentation"
+    regex: '^public\s+(class|struct|enum|protocol|func|var|let)\s+(?!\/\/\/)(?!\/\*)'
+    match_kinds:
+      - keyword
+    message: "Public APIs should be documented"
+    severity: warning
+
+  # Discourage force unwrapping in production code
+  force_unwrap_production:
+    name: "Force Unwrap in Production"
+    regex: '!\s*(?!\/\/.*test|\/\*.*test)'
+    match_kinds:
+      - identifier
+    message: "Avoid force unwrapping in production code. Use guard let, if let, or nil coalescing instead"
+    severity: warning
+    
+  # Require explicit access control
+  implicit_access_control:
+    name: "Implicit Access Control"
+    regex: '^(?!.*\b(private|fileprivate|internal|public|open)\b)\s*(class|struct|enum|protocol|func|var|let)\s+'
+    message: "Access control should be explicit"
+    severity: warning
+
+  # Discourage print statements in production
+  print_statement:
+    name: "Print Statement"
+    regex: '\bprint\s*\('
+    message: "Use proper logging instead of print statements"
+    severity: warning
+
+  # Require TODO/FIXME to have issue numbers
+  todo_format:
+    name: "TODO Format"
+    regex: '\/\/\s*(TODO|FIXME)(?!.*#\d+)'
+    message: "TODO/FIXME should reference an issue number (e.g., TODO: #123)"
+    severity: warning
+
+# Reporter configuration
+reporter: "xcode" # Use Xcode-compatible output format
+
+# Strict mode (treat warnings as errors in CI)
+strict: false
+
+# Only lint files that have been modified
+only_rules: []

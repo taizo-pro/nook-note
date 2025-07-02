@@ -25,6 +25,7 @@ struct DiscussionsListView: View {
     @State private var selectedCategory = "All"
     @State private var selectedState = "All"
     @State private var showingFilters = false
+    @FocusState private var isSearchFocused: Bool
     
     private let categories = ["All", "General", "Ideas", "Q&A", "Show and tell"]
     private let states = ["All", "Open", "Closed"]
@@ -70,17 +71,22 @@ struct DiscussionsListView: View {
             VStack(spacing: 8) {
                 HStack {
                     Text("Discussions")
-                        .font(.headline)
+                        .font(DesignSystem.Typography.title3)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                     
                     Spacer()
                     
                     Button(action: {
-                        showingFilters.toggle()
+                        withAnimation(DesignSystem.Animation.medium) {
+                            showingFilters.toggle()
+                        }
                     }) {
                         Image(systemName: showingFilters ? "line.horizontal.3.decrease.circle.fill" : "line.horizontal.3.decrease.circle")
+                            .foregroundColor(showingFilters ? DesignSystem.Colors.primary : DesignSystem.Colors.textSecondary)
                     }
                     .buttonStyle(.borderless)
-                    .help("Filters")
+                    .help("Toggle Filters (⌘L)")
+                    .keyboardShortcut("l", modifiers: .command)
                     
                     Button(action: {
                         Task {
@@ -88,36 +94,56 @@ struct DiscussionsListView: View {
                         }
                     }) {
                         Image(systemName: "arrow.clockwise")
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                             .rotationEffect(.degrees(discussionsService.isLoading ? 360 : 0))
-                            .animation(discussionsService.isLoading ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: discussionsService.isLoading)
+                            .animation(
+                                discussionsService.isLoading ? 
+                                    Animation.linear(duration: 1).repeatForever(autoreverses: false) : 
+                                    DesignSystem.Animation.medium, 
+                                value: discussionsService.isLoading
+                            )
                     }
                     .buttonStyle(.borderless)
                     .disabled(discussionsService.isLoading)
-                    .help(updateService.isAutoUpdateEnabled ? "Refresh (Auto-update: \(updateService.formattedNextUpdateTime))" : "Refresh (Auto-update disabled)")
+                    .help(updateService.isAutoUpdateEnabled ? "Refresh (⌘R) - Auto-update: \(updateService.formattedNextUpdateTime)" : "Refresh (⌘R) - Auto-update disabled")
+                    .keyboardShortcut("r", modifiers: .command)
                 }
                 
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .font(DesignSystem.Typography.body)
                     
                     TextField("Search discussions...", text: $searchText)
                         .textFieldStyle(.plain)
+                        .font(DesignSystem.Typography.body)
+                        .focused($isSearchFocused)
                     
                     if !searchText.isEmpty {
                         Button(action: {
-                            searchText = ""
+                            withAnimation(DesignSystem.Animation.fast) {
+                                searchText = ""
+                            }
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
                         }
                         .buttonStyle(.borderless)
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(6)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                                .stroke(isSearchFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
+                                .animation(DesignSystem.Animation.fast, value: isSearchFocused)
+                        )
+                )
                 
                 // Filters panel
                 if showingFilters {
@@ -175,86 +201,25 @@ struct DiscussionsListView: View {
                     .cornerRadius(6)
                 }
             }
-            .padding(.horizontal)
-            .padding(.top, 12)
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.top, DesignSystem.Spacing.md)
             
             Divider()
                 .padding(.top, 8)
             
-            if discussionsService.isLoading && filteredDiscussions.isEmpty {
-                // Initial loading state
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Loading discussions...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage = discussionsService.errorMessage {
-                // Error state
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundColor(.orange)
-                    
-                    Text("Failed to load discussions")
-                        .font(.headline)
-                    
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    
-                    Button("Try Again") {
-                        Task {
-                            await discussionsService.refreshDiscussions()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if filteredDiscussions.isEmpty && !discussionsService.discussions.isEmpty {
-                // No search results
-                VStack(spacing: 16) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-                    
-                    Text("No matching discussions")
-                        .font(.headline)
-                    
-                    Text("Try adjusting your search or filters")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if discussionsService.discussions.isEmpty {
-                // Empty state
-                VStack(spacing: 16) {
-                    Image(systemName: "bubble.left.and.bubble.right")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-                    
-                    Text("No discussions found")
-                        .font(.headline)
-                    
-                    Text("Be the first to start a discussion!")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Discussions list
-                ScrollView {
-                    LazyVStack(spacing: 8) {
+            // Content with loading states
+            ScrollView {
+                LazyVStack(spacing: DesignSystem.Spacing.sm) {
+                    if discussionsService.isLoading && filteredDiscussions.isEmpty {
+                        LoadingDiscussionsList()
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    } else {
                         ForEach(filteredDiscussions) { discussion in
                             DiscussionRowView(discussion: discussion)
-                                .onTapGesture {
-                                    onDiscussionSelected(discussion)
+                                .interactiveCardStyle {
+                                    withAnimation(DesignSystem.Animation.medium) {
+                                        onDiscussionSelected(discussion)
+                                    }
                                 }
                                 .contextMenu {
                                     Button("Open in GitHub") {
@@ -264,12 +229,64 @@ struct DiscussionsListView: View {
                                         onDiscussionSelected(discussion)
                                     }
                                 }
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                ))
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
                 }
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+                .padding(.top, DesignSystem.Spacing.sm)
             }
+            .withLoadingState(
+                isLoading: discussionsService.isLoading && filteredDiscussions.isEmpty,
+                errorMessage: discussionsService.errorMessage,
+                isEmpty: filteredDiscussions.isEmpty && !discussionsService.isLoading,
+                loading: {
+                    LoadingStateView(message: "Loading discussions...")
+                },
+                errorView: { errorMessage in
+                    ErrorStateView(
+                        title: "Failed to load discussions",
+                        message: errorMessage
+                    ) {
+                        Task {
+                            await discussionsService.refreshDiscussions()
+                        }
+                    }
+                },
+                empty: {
+                    if !discussionsService.discussions.isEmpty {
+                        // No search results
+                        EmptyStateView(
+                            icon: "magnifyingglass",
+                            title: "No matching discussions",
+                            message: "Try adjusting your search or filters",
+                            actionTitle: "Clear Filters",
+                            action: {
+                                withAnimation(DesignSystem.Animation.fast) {
+                                    searchText = ""
+                                    selectedCategory = "All"
+                                    selectedState = "All"
+                                }
+                            }
+                        )
+                    } else {
+                        // Truly empty state
+                        EmptyStateView(
+                            icon: "bubble.left.and.bubble.right",
+                            title: "No discussions found",
+                            message: "Be the first to start a discussion!",
+                            actionTitle: "New Discussion",
+                            action: {
+                                // Post notification to switch to new post tab
+                                NotificationCenter.default.post(name: .keyboardShortcut, object: "newPost")
+                            }
+                        )
+                    }
+                }
+            )
         }
         .onAppear {
             if discussionsService.discussions.isEmpty {
@@ -299,6 +316,30 @@ struct DiscussionsListView: View {
                 notificationService.updateBadgeCount(count)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .focusSearch)) { _ in
+            isSearchFocused = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleFilters)) { _ in
+            withAnimation(DesignSystem.Animation.medium) {
+                showingFilters.toggle()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .escapePressed)) { _ in
+            if isSearchFocused {
+                isSearchFocused = false
+            } else if showingFilters {
+                withAnimation(DesignSystem.Animation.medium) {
+                    showingFilters = false
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .clearAction)) { _ in
+            withAnimation(DesignSystem.Animation.fast) {
+                searchText = ""
+                selectedCategory = "All"
+                selectedState = "All"
+            }
+        }
     }
     
     
@@ -312,78 +353,60 @@ struct DiscussionsListView: View {
 
 struct DiscussionRowView: View {
     let discussion: Discussion
-    @State private var isHovered = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             // Header
             HStack {
-                Text("#\(discussion.number)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                StatusBadge(text: "#\(discussion.number)", style: .neutral)
                 
-                Text(discussion.category.emoji + " " + discussion.category.name)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(4)
+                StatusBadge(
+                    text: discussion.category.emoji + " " + discussion.category.name,
+                    style: .info
+                )
                 
                 Spacer()
                 
                 Text(timeAgoString(from: discussion.updatedAt))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
             }
             
             // Title
             Text(discussion.title)
-                .font(.system(size: 14, weight: .medium))
+                .font(DesignSystem.Typography.bodyLarge)
+                .fontWeight(.medium)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
                 .lineLimit(2)
-                .animation(.easeInOut(duration: 0.2), value: isHovered)
+                .multilineTextAlignment(.leading)
             
             // Body preview
             if let body = discussion.body, !body.isEmpty {
                 Text(body)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(isHovered ? 3 : 2)
-                    .animation(.easeInOut(duration: 0.2), value: isHovered)
+                    .font(DesignSystem.Typography.bodySmall)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
             
             // Footer
             HStack {
                 Text("@\(discussion.author.login)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.githubAuthor)
                 
                 Spacer()
                 
-                HStack(spacing: 4) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
                     Image(systemName: "bubble.left")
-                        .font(.caption)
+                        .font(DesignSystem.Typography.caption)
                     Text("\(discussion.commentsCount)")
-                        .font(.caption)
+                        .font(DesignSystem.Typography.caption)
                 }
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.textTertiary)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isHovered ? Color.accentColor.opacity(0.05) : Color(NSColor.controlBackgroundColor))
-                .animation(.easeInOut(duration: 0.2), value: isHovered)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isHovered ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
-                .animation(.easeInOut(duration: 0.2), value: isHovered)
-        )
-        .scaleEffect(isHovered ? 1.02 : 1.0)
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
-        .onHover { hovering in
-            isHovered = hovering
-        }
+        // Note: Styling is now handled by .interactiveCardStyle() modifier
     }
     
     private func timeAgoString(from date: Date) -> String {
@@ -406,5 +429,6 @@ struct DiscussionRowView: View {
 
 #Preview {
     DiscussionsListView(settingsManager: SettingsManager())
-        .frame(width: 400, height: 400)
+        .frame(width: 400, height: 500)
+        .environmentObject(NotificationService())
 }

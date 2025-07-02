@@ -34,10 +34,12 @@ struct NewPostView: View {
                 
                 Button(action: clearForm) {
                     Image(systemName: "trash")
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
                 .buttonStyle(.borderless)
                 .disabled(discussionsService.isLoading)
-                .help("Clear")
+                .help("Clear (⌘K)")
+                .keyboardShortcut("k", modifiers: .command)
             }
             .padding(.horizontal)
             .padding(.top, 12)
@@ -151,8 +153,9 @@ struct NewPostView: View {
                 Button("Clear") {
                     clearForm()
                 }
-                .buttonStyle(.borderless)
+                .secondaryButtonStyle()
                 .disabled(discussionsService.isLoading)
+                .keyboardShortcut("k", modifiers: .command)
                 
                 Spacer()
                 
@@ -169,8 +172,9 @@ struct NewPostView: View {
                         Text(discussionsService.isLoading ? "Posting..." : "Post Discussion")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryButtonStyle()
                 .disabled(discussionsService.isLoading || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .keyboardShortcut(.return, modifiers: .command)
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
@@ -193,11 +197,13 @@ struct NewPostView: View {
     }
     
     private func clearForm() {
-        title = ""
-        discussionBody = ""
-        selectedCategory = "General"
-        postingMessage = ""
-        postingSuccess = false
+        withAnimation(DesignSystem.Animation.fast) {
+            title = ""
+            discussionBody = ""
+            selectedCategory = "General"
+            postingMessage = ""
+            postingSuccess = false
+        }
     }
     
     private func postDiscussion() async {
@@ -222,20 +228,26 @@ struct NewPostView: View {
         )
         
         if success {
-            postingMessage = "Discussion posted successfully!"
-            postingSuccess = true
+            withAnimation(DesignSystem.Animation.spring) {
+                postingMessage = "Discussion posted successfully!"
+                postingSuccess = true
+            }
             
             // Notify success
             notificationService.showInAppSuccess(message: "Discussion posted successfully!")
             NotificationCenter.default.post(name: .discussionPosted, object: nil)
             
-            // Clear form after success
+            // Clear form after success with animation
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                clearForm()
+                withAnimation(DesignSystem.Animation.medium) {
+                    clearForm()
+                }
             }
         } else {
-            postingMessage = discussionsService.errorMessage ?? "Failed to post discussion"
-            postingSuccess = false
+            withAnimation(DesignSystem.Animation.fast) {
+                postingMessage = discussionsService.errorMessage ?? "Failed to post discussion"
+                postingSuccess = false
+            }
             
             // Notify error
             notificationService.showInAppError(message: postingMessage)

@@ -316,10 +316,15 @@ struct DiscussionDetailView: View {
                 )
                 
                 await MainActor.run {
-                    comments.append(newComment)
-                    newCommentBody = ""
-                    showingCommentComposer = false
-                    isPostingComment = false
+                    withAnimation(DesignSystem.Animation.spring) {
+                        comments.append(newComment)
+                        showingCommentComposer = false
+                    }
+                    
+                    withAnimation(DesignSystem.Animation.fast) {
+                        newCommentBody = ""
+                        isPostingComment = false
+                    }
                     
                     // Notify success
                     notificationService.showInAppSuccess(message: "Comment posted successfully")

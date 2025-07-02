@@ -1,0 +1,202 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for NookNote
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a new feature! 
+        
+        Before submitting, please:
+        - Search existing issues and discussions to avoid duplicates
+        - Check the [roadmap](https://github.com/taizo-pro/nook-note/blob/main/README.md#roadmap) to see if it's already planned
+        - Consider if this fits with NookNote's core mission as a GitHub Discussions MenuBar app
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem or need? Describe what you're trying to accomplish.
+      placeholder: |
+        I'm frustrated when...
+        I wish I could...
+        It would be helpful if...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature you'd like to see implemented.
+      placeholder: |
+        I would like NookNote to...
+        The feature should work by...
+        Users would benefit because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: |
+        I've tried...
+        Another approach could be...
+        Similar apps do this by...
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What area of the app would this feature affect?
+      options:
+        - User Interface (UI/UX improvements)
+        - GitHub Integration (API, authentication)
+        - MenuBar Experience (notifications, status)
+        - Performance & Efficiency
+        - Accessibility & Usability
+        - Settings & Configuration
+        - Search & Filtering
+        - Multi-repository Support
+        - New Discussion Features
+        - Export & Integration
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Feature Priority
+      description: How important is this feature to your workflow?
+      options:
+        - High - I would use this daily
+        - Medium - I would use this weekly
+        - Low - I would use this occasionally
+        - Nice to have - Not essential but would be cool
+    validations:
+      required: true
+
+  - type: dropdown
+    id: user-type
+    attributes:
+      label: User Type
+      description: What best describes your use case?
+      options:
+        - Project Maintainer (managing community discussions)
+        - Active Contributor (participating in discussions)
+        - Casual User (occasional discussion viewing)
+        - Team Member (internal project discussions)
+        - Developer (technical discussions and Q&A)
+        - Community Manager (moderating discussions)
+        - Other (please specify in additional context)
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases & Examples
+      description: |
+        Provide specific examples of how this feature would be used.
+        Include user stories if possible (As a [user type], I want [goal] so that [benefit]).
+      placeholder: |
+        Example 1: As a project maintainer, I want to...
+        Example 2: When reviewing discussions, I would...
+        Example 3: This would help when...
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups & Design Ideas
+      description: |
+        If you have ideas about how this feature should look or behave, describe them here.
+        You can attach images, sketches, or reference other apps.
+      placeholder: |
+        The UI could look like...
+        Similar to how [other app] does...
+        Attach mockups or screenshots if you have them...
+
+  - type: textarea
+    id: technical-considerations
+    attributes:
+      label: Technical Considerations
+      description: |
+        Any technical aspects to consider? (Optional - for developers)
+        This could include API limitations, performance impacts, or implementation ideas.
+      placeholder: |
+        This might require...
+        Could impact performance by...
+        GitHub API considerations...
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Estimated Complexity
+      description: How complex do you think this feature would be to implement? (Optional)
+      options:
+        - Simple - Small UI change or setting
+        - Medium - New feature with moderate complexity
+        - Complex - Major feature requiring significant development
+        - Not sure - I don't have enough technical context
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: User Impact
+      description: |
+        How would this feature benefit NookNote users?
+        Consider different user types and workflows.
+      placeholder: |
+        This would benefit users by...
+        The impact on productivity would be...
+        It addresses the common problem of...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: implementation
+    attributes:
+      label: Implementation Willingness
+      description: Would you be interested in helping implement this feature?
+      options:
+        - label: I would be willing to contribute code for this feature
+          required: false
+        - label: I would be willing to help test this feature
+          required: false
+        - label: I would be willing to help design the user interface
+          required: false
+        - label: I would be willing to help write documentation
+          required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other context, screenshots, links, or information that would help understand this request.
+        
+        This could include:
+        - Links to similar features in other apps
+        - Screenshots of current limitations
+        - References to GitHub Discussions features
+        - Community feedback or requests
+        - Performance or usability pain points
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      description: By submitting this feature request, you confirm that:
+      options:
+        - label: I have searched existing issues and discussions to avoid duplicates
+          required: true
+        - label: I have checked the project roadmap and this isn't already planned
+          required: true
+        - label: This feature aligns with NookNote's purpose as a GitHub Discussions MenuBar app
+          required: true
+        - label: I understand this is a free, open-source project maintained by volunteers
+          required: true

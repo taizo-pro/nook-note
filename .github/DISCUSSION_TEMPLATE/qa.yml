@@ -1,0 +1,33 @@
+title: "❓ Question & Answer"
+labels: ["question", "help wanted"]
+body:
+  - type: textarea
+    attributes:
+      label: "Your Question"
+      description: "What would you like to know about NookNote?"
+      placeholder: "How do I...?"
+    validations:
+      required: true
+      
+  - type: textarea
+    attributes:
+      label: "Context"
+      description: "Provide any relevant context or what you've already tried"
+      placeholder: "I'm trying to... I've already..."
+    validations:
+      required: false
+      
+  - type: dropdown
+    attributes:
+      label: "Category"
+      description: "What is your question about?"
+      options:
+        - Installation & Setup
+        - Configuration & Settings
+        - GitHub Integration
+        - Features & Usage
+        - Troubleshooting
+        - Development & Contributing
+        - Other
+    validations:
+      required: true

@@ -1,0 +1,18 @@
+title: "💡 Share Your Ideas"
+labels: ["ideas", "enhancement"]
+body:
+  - type: textarea
+    attributes:
+      label: "Your Idea"
+      description: "Share your idea for improving NookNote"
+      placeholder: "I have an idea for..."
+    validations:
+      required: true
+      
+  - type: textarea
+    attributes:
+      label: "Why is this important?"
+      description: "Explain how this would benefit NookNote users"
+      placeholder: "This would help users by..."
+    validations:
+      required: true

@@ -1,0 +1,29 @@
+title: "🎉 Show and Tell"
+labels: ["show and tell", "community"]
+body:
+  - type: textarea
+    attributes:
+      label: "What would you like to share?"
+      description: "Share how you're using NookNote, cool workflows, or achievements"
+      placeholder: "I wanted to share..."
+    validations:
+      required: true
+      
+  - type: textarea
+    attributes:
+      label: "Screenshots or Examples"
+      description: "Feel free to include screenshots, workflows, or examples"
+      placeholder: "Here's how I..."
+    validations:
+      required: false
+      
+  - type: checkboxes
+    attributes:
+      label: "What are you sharing?"
+      options:
+        - label: "Cool workflow or use case"
+        - label: "Community project using NookNote"
+        - label: "Tips and tricks"
+        - label: "Success story"
+        - label: "Integration with other tools"
+        - label: "Other (describe above)"

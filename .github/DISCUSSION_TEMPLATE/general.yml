@@ -1,0 +1,10 @@
+title: "💬 General Discussion"
+labels: ["discussion"]
+body:
+  - type: textarea
+    attributes:
+      label: "What would you like to discuss?"
+      description: "Share your thoughts, ideas, or questions about NookNote"
+      placeholder: "I wanted to discuss..."
+    validations:
+      required: true

@@ -1,0 +1,154 @@
+name: 🐛 Bug Report
+description: File a bug report to help us improve NookNote
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! 
+        
+        Before submitting, please:
+        - Search existing issues to avoid duplicates
+        - Update to the latest version if possible
+        - Check the [troubleshooting guide](https://github.com/taizo-pro/nook-note/blob/main/INSTALLATION.md#troubleshooting)
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened and what you expected to happen...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Tell us how to reproduce this behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe the expected behavior...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os-version
+    attributes:
+      label: macOS Version
+      description: What version of macOS are you running?
+      options:
+        - macOS 14.0+ (Sonoma)
+        - macOS 13.0+ (Ventura)
+        - macOS 12.0+ (Monterey)
+        - Other (please specify in additional context)
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: NookNote Version
+      description: What version of NookNote are you using?
+      placeholder: "e.g., 1.0.0 (check About dialog or release filename)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation-method
+    attributes:
+      label: Installation Method
+      description: How did you install NookNote?
+      options:
+        - Downloaded DMG from GitHub Releases
+        - Built from source with Xcode
+        - Built from source with command line
+        - Other (please specify)
+    validations:
+      required: true
+
+  - type: input
+    id: repository-type
+    attributes:
+      label: Repository Type
+      description: What type of GitHub repository are you using?
+      placeholder: "e.g., Public, Private, Organization"
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does this occur?
+      options:
+        - Always (100% of the time)
+        - Frequently (>50% of the time)
+        - Sometimes (10-50% of the time)
+        - Rarely (<10% of the time)
+        - Only once
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots/Videos
+      description: |
+        If applicable, add screenshots or videos to help explain your problem.
+        You can drag and drop images here.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console Logs
+      description: |
+        If the app crashes or shows errors, please include relevant console logs.
+        You can find these in Console.app by searching for "NookNote".
+      render: shell
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Add any other context about the problem here. This could include:
+        - Network conditions
+        - GitHub API rate limits
+        - Other apps running
+        - System configuration
+        - Previous versions that worked
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      description: By submitting this issue, you confirm that:
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have read the [troubleshooting guide](https://github.com/taizo-pro/nook-note/blob/main/INSTALLATION.md#troubleshooting)
+          required: true
+        - label: I am using a supported version of macOS (12.0+)
+          required: true
+        - label: I am willing to test fixes and provide feedback
+          required: false

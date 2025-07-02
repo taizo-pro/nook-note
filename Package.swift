@@ -21,7 +21,10 @@ let package = Package(
         .executableTarget(
             name: "NookNote",
             dependencies: [],
-            path: "Sources"
+            path: "Sources",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "NookNoteTests",

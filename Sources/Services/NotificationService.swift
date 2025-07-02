@@ -11,13 +11,22 @@ class NotificationService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     init() {
-        requestNotificationPermission()
         setupNotificationObservers()
+        // Delay notification permission request to avoid bundle issues
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.requestNotificationPermissionSafely()
+        }
     }
     
     // MARK: - Permission Management
     
-    private func requestNotificationPermission() {
+    private func requestNotificationPermissionSafely() {
+        // Check if we're running in a proper app bundle context
+        guard Bundle.main.bundleIdentifier != nil else {
+            print("NotificationService: Skipping notification setup - not in app bundle context")
+            return
+        }
+        
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             DispatchQueue.main.async {
                 if let error = error {
@@ -65,7 +74,7 @@ class NotificationService: ObservableObject {
     // MARK: - Notification Types
     
     func showNewDiscussionsNotification(count: Int) {
-        guard isNotificationEnabled else { return }
+        guard isNotificationEnabled && Bundle.main.bundleIdentifier != nil else { return }
         
         let content = UNMutableNotificationContent()
         content.title = "New Discussions"
@@ -87,7 +96,7 @@ class NotificationService: ObservableObject {
     }
     
     func showDiscussionPostedNotification() {
-        guard isNotificationEnabled else { return }
+        guard isNotificationEnabled && Bundle.main.bundleIdentifier != nil else { return }
         
         let content = UNMutableNotificationContent()
         content.title = "Discussion Posted"
@@ -108,7 +117,7 @@ class NotificationService: ObservableObject {
     }
     
     func showCommentPostedNotification() {
-        guard isNotificationEnabled else { return }
+        guard isNotificationEnabled && Bundle.main.bundleIdentifier != nil else { return }
         
         let content = UNMutableNotificationContent()
         content.title = "Comment Posted"
@@ -129,7 +138,7 @@ class NotificationService: ObservableObject {
     }
     
     func showErrorNotification(message: String) {
-        guard isNotificationEnabled else { return }
+        guard isNotificationEnabled && Bundle.main.bundleIdentifier != nil else { return }
         
         let content = UNMutableNotificationContent()
         content.title = "Error"
@@ -150,7 +159,7 @@ class NotificationService: ObservableObject {
     }
     
     func showAuthenticationRequiredNotification() {
-        guard isNotificationEnabled else { return }
+        guard isNotificationEnabled && Bundle.main.bundleIdentifier != nil else { return }
         
         let content = UNMutableNotificationContent()
         content.title = "Authentication Required"

@@ -45,15 +45,30 @@
 
 ### Option 2: Build from Source
 
+**Method A: Xcode (Recommended)**
 ```bash
 # Clone the repository
 git clone https://github.com/taizo-pro/nook-note.git
 cd nook-note
 
-# Build and run
-swift build --configuration release
-swift run
+# Open in Xcode
+open Package.swift
+
+# Then press ⌘R to run in Xcode
 ```
+
+**Method B: Command Line (Basic Testing)**
+```bash
+# Clone and build
+git clone https://github.com/taizo-pro/nook-note.git
+cd nook-note
+
+# Build and run (some features may be limited in CLI mode)
+swift build --configuration release
+swift run --configuration release
+```
+
+> **Note**: For full functionality including notifications and proper MenuBar integration, use Xcode. CLI mode is suitable for basic testing only.
 
 ## ⚙️ Setup
 
@@ -152,17 +167,20 @@ swift run
 # - Swift 5.9+
 # - macOS 12.0+
 
-# Clone and build
+# Clone and open in Xcode (recommended)
 git clone https://github.com/taizo-pro/nook-note.git
 cd nook-note
+open Package.swift
+
+# Or build from command line
 swift build --configuration release
+swift run --configuration release
 
-# Run
-swift run
-
-# Create DMG (requires create-dmg)
-./Scripts/create-dmg.sh
+# Create DMG (future feature)
+# ./Scripts/create-dmg.sh
 ```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development setup and troubleshooting.
 
 ### Testing
 

@@ -68,7 +68,21 @@ NookNote transforms GitHub Discussions into an accessible, efficient MenuBar exp
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 📱 For Regular Users (No Programming Required)
+
+**最も簡単な方法** - プログラミング知識不要：
+
+1. **📥 [NookNoteをダウンロード](https://github.com/taizo-pro/nook-note/releases/latest)** - DMGファイルをクリック
+2. **📂 インストール** - アプリをApplicationsフォルダにドラッグ&ドロップ
+3. **🔐 GitHub設定** - Personal Access Tokenを作成
+4. **⚙️ アプリ設定** - リポジトリ情報とトークンを入力
+5. **🎉 完了** - メニューバーからGitHub Discussionsにアクセス！
+
+> 📖 **詳細手順**: [完全インストールガイド](USER_INSTALLATION_GUIDE.md) - 画像付きで分かりやすく説明
+
+### 👨‍💻 For Developers
+
+#### Prerequisites
 
 - **macOS 12.0 (Monterey) or later**
 - **GitHub Account** with repository access
@@ -76,8 +90,6 @@ NookNote transforms GitHub Discussions into an accessible, efficient MenuBar exp
   - `repo` - Full control of private repositories
   - `read:discussion` - Read discussions
   - `write:discussion` - Write discussions
-
-### Installation
 
 #### Option 1: Download Release (Recommended)
 

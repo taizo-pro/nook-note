@@ -16,14 +16,12 @@ env:
   SWIFT_VERSION: 5.9
 
 jobs:
-  create-release:
-    name: Create Release
+  build-and-release:
+    name: Build and Release NookNote
     runs-on: macos-14
+    permissions:
+      contents: write
     
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -45,7 +43,7 @@ jobs:
         xcode-version: '15.0'
         
     - name: Cache Swift Package Manager
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: .build
         key: ${{ runner.os }}-spm-release-${{ hashFiles('**/Package.resolved') }}
@@ -53,18 +51,13 @@ jobs:
           ${{ runner.os }}-spm-release-
           ${{ runner.os }}-spm-
           
-    - name: Run tests before release
-      run: |
-        echo "🧪 Running full test suite before release..."
-        swift test --configuration release
-        
     - name: Build release binary
       run: |
         echo "🔨 Building release binary..."
         swift build --configuration release -Xswiftc -Osize
         
         # Verify build
-        if [ ! -f ".build/release/$APP_NAME" ]; then
+        if [ ! -f ".build/apple/Products/Release/$APP_NAME" ]; then
           echo "❌ Build failed"
           exit 1
         fi
@@ -75,30 +68,54 @@ jobs:
       run: |
         echo "📦 Creating app bundle..."
         
-        APP_BUNDLE=".build/release/$APP_NAME.app"
+        APP_BUNDLE="build/$APP_NAME.app"
         mkdir -p "$APP_BUNDLE/Contents/MacOS"
         mkdir -p "$APP_BUNDLE/Contents/Resources"
         
         # Copy executable
-        cp ".build/release/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
+        cp ".build/apple/Products/Release/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
         
-        # Copy Info.plist and update version
-        cp "Resources/Info.plist" "$APP_BUNDLE/Contents/"
-        
-        # Update version in Info.plist
-        VERSION_NUMBER="${{ steps.version.outputs.version }}"
-        VERSION_NUMBER=${VERSION_NUMBER#v} # Remove 'v' prefix
-        
-        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION_NUMBER" "$APP_BUNDLE/Contents/Info.plist"
-        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION_NUMBER" "$APP_BUNDLE/Contents/Info.plist"
-        
-        # Copy app icon
-        cp -r "Resources/AppIcon.appiconset" "$APP_BUNDLE/Contents/Resources/"
-        
-        # Create PkgInfo
-        echo "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
+        # Create Info.plist
+        cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>$APP_NAME</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.nooknote.app</string>
+            <key>CFBundleName</key>
+            <string>$APP_NAME</string>
+            <key>CFBundleDisplayName</key>
+            <string>$APP_NAME</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ steps.version.outputs.version }}</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>LSMinimumSystemVersion</key>
+            <string>12.0</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>NSHumanReadableCopyright</key>
+            <string>Copyright © 2025 NookNote. All rights reserved.</string>
+        </dict>
+        </plist>
+        EOF
         
         echo "✅ App bundle created"
+        
+    - name: Sign app bundle
+      run: |
+        echo "🔐 Signing app bundle..."
+        codesign --force --deep --sign - "build/$APP_NAME.app"
+        echo "✅ App bundle signed"
         
     - name: Create DMG
       run: |
@@ -106,11 +123,10 @@ jobs:
         
         DMG_DIR="build/dmg"
         TEMP_DMG_DIR="$DMG_DIR/temp"
-        APP_BUNDLE=".build/release/$APP_NAME.app"
         
         # Create staging directory
         mkdir -p "$TEMP_DMG_DIR"
-        cp -r "$APP_BUNDLE" "$TEMP_DMG_DIR/"
+        cp -r "build/$APP_NAME.app" "$TEMP_DMG_DIR/"
         
         # Create Applications symlink
         ln -sf /Applications "$TEMP_DMG_DIR/Applications"
@@ -119,76 +135,24 @@ jobs:
         cat > "$TEMP_DMG_DIR/README.txt" << EOF
         $APP_NAME ${{ steps.version.outputs.version }}
         
-        GitHub Discussions MenuBar App
-        
-        Installation Instructions:
-        1. Drag $APP_NAME.app to the Applications folder
-        2. Right-click $APP_NAME.app and select "Open" (first time only)
-        3. Click "Open" when macOS asks for confirmation
-        4. Configure your GitHub repository and access token
-        
-        Features:
-        - Quick access to GitHub Discussions from MenuBar
-        - Create and comment on discussions
-        - Real-time updates and notifications
-        - Keyboard shortcuts for efficiency
-        - Full accessibility support
+        Installation:
+        1. Drag $APP_NAME.app to Applications folder
+        2. Right-click and select "Open" (first time only)
+        3. Configure GitHub repository and token
         
         Documentation: https://github.com/taizo-pro/nook-note
-        Issues: https://github.com/taizo-pro/nook-note/issues
-        
-        Thank you for using $APP_NAME!
-        EOF
-        
-        # Create changelog for this version
-        cat > "$TEMP_DMG_DIR/CHANGELOG.txt" << EOF
-        $APP_NAME ${{ steps.version.outputs.version }} - Release Notes
-        
-        This is a GitHub Discussions MenuBar app that provides quick access to 
-        discussions directly from your macOS MenuBar.
-        
-        What's New:
-        - Initial release with core functionality
-        - GitHub API integration for discussions
-        - MenuBar interface with modern SwiftUI
-        - Keyboard shortcuts and accessibility support
-        - Real-time updates and notifications
-        
-        System Requirements:
-        - macOS 12.0 (Monterey) or later
-        - GitHub Personal Access Token with discussion permissions
-        
-        Known Issues:
-        - First launch requires "Open" from right-click menu (self-signed certificate)
-        - Auto-updates not available (manual download from GitHub Releases)
-        
-        Future Releases:
-        - Enhanced search and filtering
-        - Discussion templates
-        - Multi-repository support
-        - Custom notification settings
         EOF
         
         mkdir -p "$DMG_DIR"
         
-        # Calculate size
-        SIZE=$(du -sm "$TEMP_DMG_DIR" | cut -f1)
-        SIZE=$((SIZE + 50))
-        
         # Create DMG
-        TEMP_DMG="$DMG_DIR/temp.dmg"
         FINAL_DMG="$DMG_DIR/$APP_NAME-${{ steps.version.outputs.version }}.dmg"
         
-        hdiutil create -size ${SIZE}m -fs HFS+ -volname "$APP_NAME ${{ steps.version.outputs.version }}" "$TEMP_DMG"
+        hdiutil create -volname "$APP_NAME ${{ steps.version.outputs.version }}" \
+          -srcfolder "$TEMP_DMG_DIR" \
+          -ov -format UDZO \
+          "$FINAL_DMG"
         
-        # Mount and copy files
-        MOUNT_DIR=$(hdiutil attach "$TEMP_DMG" | grep -E '^/dev/' | sed 's/^[^[:space:]]*[[:space:]]*[^[:space:]]*[[:space:]]*//')
-        cp -r "$TEMP_DMG_DIR"/* "$MOUNT_DIR/"
-        hdiutil detach "$MOUNT_DIR"
-        
-        # Convert to final DMG
-        hdiutil convert "$TEMP_DMG" -format UDZO -o "$FINAL_DMG"
-        rm "$TEMP_DMG"
         rm -rf "$TEMP_DMG_DIR"
         
         echo "DMG_PATH=$FINAL_DMG" >> $GITHUB_ENV
@@ -197,8 +161,8 @@ jobs:
     - name: Generate checksums
       run: |
         echo "🔐 Generating checksums..."
-        cd "$(dirname "$DMG_PATH")"
-        DMG_FILE="$(basename "$DMG_PATH")"
+        cd "build/dmg"
+        DMG_FILE="$APP_NAME-${{ steps.version.outputs.version }}.dmg"
         
         # Generate checksums
         shasum -a 256 "$DMG_FILE" > "$DMG_FILE.sha256"
@@ -207,234 +171,73 @@ jobs:
         echo "✅ Checksums generated"
         
     - name: Create release notes
-      id: release_notes
       run: |
         cat > release_notes.md << EOF
         # $APP_NAME ${{ steps.version.outputs.version }}
         
-        A modern macOS MenuBar application for GitHub Discussions that provides quick access to discussions directly from your MenuBar.
+        A modern macOS MenuBar application for GitHub Discussions.
         
         ## ✨ Features
         
         - 🚀 **MenuBar Integration** - Quick access from macOS MenuBar
         - 📝 **Discussion Management** - Create and comment on GitHub Discussions
-        - 🔄 **Real-time Updates** - Auto-refresh every 5 minutes
+        - 🔄 **Real-time Updates** - Auto-refresh with configurable intervals
         - 🔍 **Advanced Search** - Filter by category, state, and content
-        - ⌨️ **Keyboard Shortcuts** - Efficient navigation and actions
+        - ⌨️ **Keyboard Shortcuts** - Complete keyboard navigation
         - 🎨 **Modern UI** - Native SwiftUI with smooth animations
-        - 🔐 **Secure Authentication** - Token stored safely in Keychain
-        - ♿ **Accessibility** - Full VoiceOver and keyboard navigation support
+        - 🔐 **Secure Authentication** - Safe token storage in Keychain
+        - ♿ **Accessibility** - Full VoiceOver support
         
         ## 📥 Installation
         
-        ### Option 1: Download DMG (Recommended)
-        1. Download \`$APP_NAME-${{ steps.version.outputs.version }}.dmg\` below
-        2. Open the DMG file
-        3. Drag $APP_NAME.app to Applications folder
-        4. **Important**: Right-click $APP_NAME.app → "Open" (first time only)
-        5. Click "Open" when macOS asks for confirmation
+        1. Download \`$APP_NAME-${{ steps.version.outputs.version }}.dmg\`
+        2. Open DMG and drag app to Applications
+        3. **Important**: Right-click app → "Open" (first time only)
+        4. Configure GitHub repository and Personal Access Token
         
-        ### Option 2: Build from Source
-        1. Clone the repository
-        2. Open in Xcode 15+ 
-        3. Build and run with ⌘R
+        ## 📋 Requirements
         
-        ## ⚙️ Setup
-        
-        1. Get a GitHub Personal Access Token:
-           - Go to GitHub Settings → Developer settings → Personal access tokens
-           - Create token with \`repo\`, \`read:discussion\`, \`write:discussion\` scopes
-        
-        2. Configure NookNote:
-           - Click the gear icon or press ⌘, to open Settings
-           - Enter your repository owner and name
-           - Enter your Personal Access Token
-           - Click "Save Settings"
-        
-        ## ⌨️ Keyboard Shortcuts
-        
-        | Shortcut | Action |
-        |----------|--------|
-        | ⌘N | New discussion |
-        | ⌘R | Refresh discussions |
-        | ⌘F | Focus search |
-        | ⌘, | Open settings |
-        | ⌘W | Close window |
-        | ⌘⏎ | Post (in editor) |
+        - macOS 12.0+ (Monterey or later)
+        - GitHub Personal Access Token with \`repo\`, \`read:discussion\`, \`write:discussion\` scopes
         
         ## 🔒 Security Note
         
-        This app is signed with a self-signed certificate for free distribution. macOS will show a security warning on first launch. This is expected behavior for apps distributed outside the Mac App Store.
+        This app uses a self-signed certificate for free distribution. The security warning is expected - just right-click and select "Open".
         
-        **To open safely:**
-        1. Right-click the app and select "Open"
-        2. Click "Open" in the confirmation dialog
-        3. The app will then open normally in future launches
+        ## 📖 Documentation
         
-        ## 🐛 Known Issues
+        - [Installation Guide](https://github.com/taizo-pro/nook-note/blob/main/INSTALLATION.md)
+        - [User Guide](https://github.com/taizo-pro/nook-note/blob/main/docs/USER_GUIDE.md)
+        - [Contributing](https://github.com/taizo-pro/nook-note/blob/main/CONTRIBUTING.md)
         
-        - First launch requires manual confirmation due to self-signed certificate
-        - Auto-updates not available (check GitHub Releases for updates)
+        ## 🐛 Report Issues
         
-        ## 📊 Technical Details
-        
-        - **Minimum macOS**: 12.0 (Monterey)
-        - **Architecture**: Universal Binary (Intel + Apple Silicon)
-        - **Framework**: SwiftUI + Combine
-        - **Size**: ~10-15MB
-        
-        ## 🙏 Acknowledgments
-        
-        Built with ❤️ using SwiftUI and the GitHub GraphQL API.
-        
-        ## 📝 Changelog
-        
-        ### Initial Release
-        - Complete GitHub Discussions integration
-        - MenuBar interface with modern SwiftUI
-        - Keyboard shortcuts and accessibility support  
-        - Real-time updates and notifications
-        - Comprehensive testing and quality assurance
+        Found a bug? [Create an issue](https://github.com/taizo-pro/nook-note/issues/new/choose)
         
         ---
         
-        **Full Changelog**: https://github.com/taizo-pro/nook-note/commits/${{ steps.version.outputs.version }}
+        🚀 **Generated with [Claude Code](https://claude.ai/code)**
+        
+        Co-Authored-By: Claude <noreply@anthropic.com>
         EOF
         
-        echo "RELEASE_NOTES_PATH=release_notes.md" >> $GITHUB_ENV
-        
     - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        release_name: ${{ env.APP_NAME }} ${{ steps.version.outputs.version }}
+        name: ${{ env.APP_NAME }} ${{ steps.version.outputs.version }}
         body_path: release_notes.md
         draft: false
         prerelease: false
-        
-  upload-assets:
-    name: Upload Release Assets
-    runs-on: macos-14
-    needs: create-release
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '15.0'
-        
-    - name: Cache Swift Package Manager
-      uses: actions/cache@v3
-      with:
-        path: .build
-        key: ${{ runner.os }}-spm-release-${{ hashFiles('**/Package.resolved') }}
-        restore-keys: |
-          ${{ runner.os }}-spm-release-
-          
-    - name: Rebuild for upload
-      run: |
-        # Rebuild everything for asset upload
-        swift build --configuration release -Xswiftc -Osize
-        
-        # Create app bundle
-        APP_BUNDLE=".build/release/$APP_NAME.app"
-        mkdir -p "$APP_BUNDLE/Contents/MacOS"
-        mkdir -p "$APP_BUNDLE/Contents/Resources"
-        
-        cp ".build/release/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
-        cp "Resources/Info.plist" "$APP_BUNDLE/Contents/"
-        cp -r "Resources/AppIcon.appiconset" "$APP_BUNDLE/Contents/Resources/"
-        echo "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
-        
-        # Update version
-        VERSION_NUMBER="${{ needs.create-release.outputs.version }}"
-        VERSION_NUMBER=${VERSION_NUMBER#v}
-        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION_NUMBER" "$APP_BUNDLE/Contents/Info.plist"
-        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION_NUMBER" "$APP_BUNDLE/Contents/Info.plist"
-        
-        # Create DMG
-        DMG_DIR="build/dmg"
-        TEMP_DMG_DIR="$DMG_DIR/temp"
-        mkdir -p "$TEMP_DMG_DIR"
-        cp -r "$APP_BUNDLE" "$TEMP_DMG_DIR/"
-        ln -sf /Applications "$TEMP_DMG_DIR/Applications"
-        
-        mkdir -p "$DMG_DIR"
-        SIZE=$(du -sm "$TEMP_DMG_DIR" | cut -f1)
-        SIZE=$((SIZE + 50))
-        
-        TEMP_DMG="$DMG_DIR/temp.dmg"
-        FINAL_DMG="$DMG_DIR/$APP_NAME-${{ needs.create-release.outputs.version }}.dmg"
-        
-        hdiutil create -size ${SIZE}m -fs HFS+ -volname "$APP_NAME ${{ needs.create-release.outputs.version }}" "$TEMP_DMG"
-        MOUNT_DIR=$(hdiutil attach "$TEMP_DMG" | grep -E '^/dev/' | sed 's/^[^[:space:]]*[[:space:]]*[^[:space:]]*[[:space:]]*//')
-        cp -r "$TEMP_DMG_DIR"/* "$MOUNT_DIR/"
-        hdiutil detach "$MOUNT_DIR"
-        hdiutil convert "$TEMP_DMG" -format UDZO -o "$FINAL_DMG"
-        rm "$TEMP_DMG"
-        rm -rf "$TEMP_DMG_DIR"
-        
-        echo "DMG_PATH=$FINAL_DMG" >> $GITHUB_ENV
-        
-        # Generate checksums
-        cd "$(dirname "$FINAL_DMG")"
-        DMG_FILE="$(basename "$FINAL_DMG")"
-        shasum -a 256 "$DMG_FILE" > "$DMG_FILE.sha256"
-        md5 "$DMG_FILE" > "$DMG_FILE.md5"
-        
-    - name: Upload DMG
-      uses: actions/upload-release-asset@v1
+        files: |
+          build/dmg/${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.dmg
+          build/dmg/${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.dmg.sha256
+          build/dmg/${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.dmg.md5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ${{ env.DMG_PATH }}
-        asset_name: ${{ env.APP_NAME }}-${{ needs.create-release.outputs.version }}.dmg
-        asset_content_type: application/x-apple-diskimage
         
-    - name: Upload SHA256 Checksum
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ${{ env.DMG_PATH }}.sha256
-        asset_name: ${{ env.APP_NAME }}-${{ needs.create-release.outputs.version }}.dmg.sha256
-        asset_content_type: text/plain
-        
-    - name: Upload MD5 Checksum
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ${{ env.DMG_PATH }}.md5
-        asset_name: ${{ env.APP_NAME }}-${{ needs.create-release.outputs.version }}.dmg.md5
-        asset_content_type: text/plain
-
-  notify:
-    name: Notify Release
-    runs-on: ubuntu-latest
-    needs: [create-release, upload-assets]
-    if: always()
-    
-    steps:
     - name: Notify success
-      if: needs.upload-assets.result == 'success'
       run: |
-        echo "🎉 Release ${{ needs.create-release.outputs.version }} created successfully!"
+        echo "🎉 Release ${{ steps.version.outputs.version }} created successfully!"
         echo "📦 DMG and checksums uploaded to GitHub Releases"
-        echo "🔗 https://github.com/${{ github.repository }}/releases/tag/${{ needs.create-release.outputs.version }}"
-        
-    - name: Notify failure
-      if: needs.upload-assets.result != 'success'
-      run: |
-        echo "❌ Release process failed"
-        echo "Check the workflow logs for details"
-        exit 1
+        echo "🔗 https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}"

@@ -56,11 +56,18 @@ jobs:
         echo "🔨 Building release binary..."
         swift build --configuration release -Xswiftc -Osize
         
-        # Verify build
-        if [ ! -f ".build/apple/Products/Release/$APP_NAME" ]; then
-          echo "❌ Build failed"
+        # Verify build - check both possible locations
+        if [ -f ".build/release/$APP_NAME" ]; then
+          BUILD_PATH=".build/release/$APP_NAME"
+        elif [ -f ".build/apple/Products/Release/$APP_NAME" ]; then
+          BUILD_PATH=".build/apple/Products/Release/$APP_NAME"
+        else
+          echo "❌ Build failed - executable not found"
+          ls -la .build/*/
           exit 1
         fi
+        
+        echo "BUILD_PATH=$BUILD_PATH" >> $GITHUB_ENV
         
         echo "✅ Build successful"
         
@@ -73,7 +80,7 @@ jobs:
         mkdir -p "$APP_BUNDLE/Contents/Resources"
         
         # Copy executable
-        cp ".build/apple/Products/Release/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
+        cp "$BUILD_PATH" "$APP_BUNDLE/Contents/MacOS/"
         
         # Create Info.plist
         cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
